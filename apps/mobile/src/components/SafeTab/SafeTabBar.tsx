@@ -1,7 +1,7 @@
 import React from 'react'
 import { TabBarProps } from 'react-native-collapsible-tab-view'
 import { TabName } from 'react-native-collapsible-tab-view/lib/typescript/src/types'
-import { TouchableOpacity } from 'react-native-gesture-handler'
+import { Pressable } from 'react-native'
 import { View, Text, useTheme } from 'tamagui'
 
 interface SafeTabBarProps {
@@ -47,11 +47,11 @@ export const SafeTabBar = ({
     >
       <View flexDirection="row" gap="$6">
         {tabNames.map((name) => (
-          <TouchableOpacity style={isActiveTab(name) && activeButtonStyle} onPress={handleTabPressed(name)} key={name}>
+          <Pressable style={isActiveTab(name) && activeButtonStyle} onPress={handleTabPressed(name)} key={name}>
             <Text color={isActiveTab(name) ? '$color' : '$colorSecondary'} fontSize="$6" fontWeight={700}>
               {name}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </View>
       {rightNode && <View paddingBottom="$2">{rightNode}</View>}
