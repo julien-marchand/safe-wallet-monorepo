@@ -27,6 +27,25 @@ const cleanUpPendingTx = (listenerApi: AppListenerEffectAPI, txId: string) => {
   listenerApi.dispatch(cgwApi.util.invalidateTags(['transactions']))
 }
 
+const handleRelayWatcherError = (
+  listenerApi: AppListenerEffectAPI,
+  txId: string,
+  taskId: string,
+  chainId: string,
+  err: unknown,
+) => {
+  const errorMessage = err instanceof Error ? err.message : String(err)
+  listenerApi.dispatch(setPendingTxStatus({ txId, chainId, status: PendingStatus.FAILED, error: errorMessage }))
+
+  if (err instanceof Error && err.cause === TIMEOUT_ERROR_CODE) {
+    setTimeout(() => {
+      cleanUpPendingTx(listenerApi, txId)
+    }, 1000)
+  }
+
+  logger.error('Relay watcher error', { txId, taskId, error: err })
+}
+
 /***
  * Gelato endpoint is not reliable at times
  * and sometimes it returns no response yet the transaction might have been submitted to the blockchain.
@@ -68,25 +87,15 @@ const startRelayWatcher = (listenerApi: AppListenerEffectAPI, txId: string, task
     })
     .then((relayStatus) => {
       const txHash = relayStatus.receipt?.transactionHash
-      // Transaction executed successfully, move to indexing
       logger.info('Relay transaction completed', { txId, taskId, txHash })
 
-      if (txHash && txHash !== '') {
+      if (txHash) {
         listenerApi.dispatch(setRelayTxHash({ txId, txHash }))
         listenerApi.dispatch(setPendingTxStatus({ txId, chainId, status: PendingStatus.INDEXING }))
       }
     })
     .catch((err) => {
-      const errorMessage = err instanceof Error ? err.message : String(err)
-      listenerApi.dispatch(setPendingTxStatus({ txId, chainId, status: PendingStatus.FAILED, error: errorMessage }))
-
-      if (err.cause === TIMEOUT_ERROR_CODE) {
-        setTimeout(() => {
-          cleanUpPendingTx(listenerApi, txId)
-        }, 1000)
-      }
-
-      logger.error('Relay watcher error', { txId, taskId, error: err })
+      handleRelayWatcherError(listenerApi, txId, taskId, chainId, err)
     })
 }
 
